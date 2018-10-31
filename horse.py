@@ -4,6 +4,8 @@ import os, sys, string, time, logging, argparse
 import glob
 
 import pygame
+#import pygame_sdl2 as pygame
+
 from PIL import Image
 
 import AnimatedSprite
@@ -24,9 +26,15 @@ except ImportError:
   print ("no config.py found.  Please copy sample_config.py to config.py.")
   sys.exit(1)
 
-x = 0
-y = 0
-os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
+if 0:
+  x = 0
+  y = 0
+#os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
+if 0:
+  os.environ['SDL_VIDEODRIVER'] = "fbcon"
+  os.putenv('SDL_FBDEV','/dev/fb0')
+  os.environ["SDL_FBDEV"] = "/dev/fb0"
+
 
 SONG_END = pygame.USEREVENT + 1
 
@@ -156,56 +164,19 @@ class Grass:
 
 class Grass2:
   def __init__(self):
-    self.wheel = pygame.image.load(os.path.join(config.imagePath, 'track', 'wheel.png'))
     self.track = pygame.image.load(os.path.join(config.imagePath, 'track.png'))
 
   def draw(self, screen, pos):
-
     x = pos[0]
     y = pos[1]
 
-    greens = []
-    hgreens = []
-    greens.append((142, 252, 3)) ## first
-    hgreens.append((26, 223, 1))
-
-    greens.append((33, 223, 1))
-    hgreens.append((48, 227, 2))
-
-    greens.append((114, 244, 14))
-    hgreens.append((59, 227, 34))
-
-    greens.append((33, 223, 1))  ## extra
-    hgreens.append((48, 227, 2))
-
-    greens.append((142, 252, 3)) ## extra 2
-    hgreens.append((26, 223, 1))
-
     screen.blit(self.track, [x, y])
 
-    if 0:
-      screen.blit(self.uppertrack, [x, y])
-
-      if self.uppertrack.get_size()[0]+x < config.tracksize[0]:
-        screen.blit(self.uppertrack, [self.uppertrack.get_size()[0]+x, y])
-
-      screen.blit(self.wheel, [x+15, y+11])
-
-      y += self.uppertrack.get_size()[1]
-      pygame.draw.rect(screen, greens[0], (x, y, config.tracksize[0], config.horsesize[1]))
-
-      y += int(config.horsesize[1]/2)
-      dy = config.horsesize[1]-1
-      for n in range(len(config.horseNames)-1):
-        pygame.draw.rect(screen, greens[n+1], (x, y, config.tracksize[0], dy))
-        pygame.draw.rect(screen, hgreens[n+1], (x, y+dy, config.tracksize[0], dy+1))
-        y += config.horsesize[1]
-
-      y -= 2
-      screen.blit(self.lowertrack, [pos[0], y])
-      if self.lowertrack.get_size()[0]+x < config.tracksize[0]:
-        screen.blit(self.lowertrack, [self.lowertrack.get_size()[0]+pos[0], y])
-      screen.blit(self.wheel, [x+15, y - 8])
+  def update(self, screen, pos):
+    x = 100
+    y = 620 - config.horsesize[1]
+    area = pygame.Rect((x,y), (config.screensize[0], 980))
+    screen.blit(self.track, [x, y], area)
 
 
 class States(object):
@@ -256,6 +227,9 @@ class Start(States):
         self.app.resetHorses()
         logging.debug('starting Start state')
 
+        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
+        self.myfont2 = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 40)
+
     def get_event(self, event):
         if event.type == pygame.JOYBUTTONUP:
             logging.debug("Joystick button released.")
@@ -297,7 +271,6 @@ class Start(States):
         mx = 100
         dx = (config.screensize[0]-mx*2) // 4
 
-        myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 80)
 
         for n, horse in enumerate(self.app._horses):
           r = pygame.Rect((0,0), (dx-10,dx-10))
@@ -319,22 +292,27 @@ class Start(States):
           pygame.draw.rect(screen, BLACK, r2, 2)
 
           y += horse.character.get_size()[1] 
-          y += 20
+          y += 5
+
+          textsurface = self.myfont2.render(horse.name, True, BLACK)
+          screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y))
+          
+          y += textsurface.get_size()[1]
 
           if horse.hidden:
-              textsurface = myfont.render('Press Any', True, BLACK)
+              textsurface = self.myfont.render('Press Any', True, BLACK)
               screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y))
               y += textsurface.get_size()[1]
-              textsurface = myfont.render('Button', True, BLACK)
+              textsurface = self.myfont.render('Button', True, BLACK)
               screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y))
               y += textsurface.get_size()[1]
 
               if self.timerStarted == True:
-                textsurface = myfont.render(str(round(self.time)), True, BLACK)
+                textsurface = self.myfont.render(str(round(self.time)), True, BLACK)
                 screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y))
           else:
-              textsurface = myfont.render('Ready!', True, BLACK)
-              screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y))
+              textsurface = self.myfont.render('Ready!', True, BLACK)
+              screen.blit(textsurface, (cx - textsurface.get_size()[0]//2, y+50))
 
 class CountDown(States):
     def __init__(self, app):
@@ -343,6 +321,8 @@ class CountDown(States):
         self.next = 'game'
 
     def startup(self):
+        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
+
         files = glob.glob(os.path.join(config.imagePath, 'countdown*.png'))
         files.sort()
 
@@ -398,18 +378,17 @@ class CountDown(States):
 
     def draw(self, screen, dt):
         self.app.grass.draw(screen, [0,0])
+
         if self.timerStarted == True:
             self.sprite.update(dt, screen,
                                x=(config.screensize[0] - self.sprite.images[self.sprite.index].get_size()[0])//2,
                                y=(config.screensize[1] - self.sprite.images[self.sprite.index].get_size()[1])//2)
 
-        myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
 
         for horse in self.app.horses():
           horse.draw(screen, dt)
           if not horse.hidden:
-            textsurface = myfont.render(str(horse.slotnumber), True, BLACK)
-
+            textsurface = self.myfont.render(str(horse.slotnumber), True, BLACK)
             screen.blit(textsurface, (horse.finishlinex+60, horse.y-45-(textsurface.get_size()[1])//2))
 
             pygame.draw.line(screen, BLACK, 
@@ -422,7 +401,10 @@ class Game(States):
         States.__init__(self)
         self.next = 'finish'
 
+
     def startup(self):
+        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
+
         files = glob.glob(os.path.join(config.imagePath, 'countdownend*.png'))
         files.sort()
         files.append(os.path.join(config.imagePath, 'endgame.png'))
@@ -474,6 +456,7 @@ class Game(States):
 
     def update(self, screen, dt):
         self.draw(screen, dt)
+
         if self.timerStarted == True:
             self.time = self.time - dt
         horses = self.app.horses()
@@ -493,15 +476,13 @@ class Game(States):
           if self.time < 0: self.done = True
 
     def draw(self, screen, dt):
-        self.app.grass.draw(screen, [0,0])
-
-        myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
+        self.app.grass.update(screen, [0,0])
 
         horses = self.app.horses()
         for horse in horses:
 
           if not horse.hidden:
-            textsurface = myfont.render(str(horse.slotnumber), True, BLACK)
+            textsurface = self.myfont.render(str(horse.slotnumber), True, BLACK)
             screen.blit(textsurface, (horse.finishlinex+60, horse.y-45-(textsurface.get_size()[1])//2))
 
             pygame.draw.line(screen, BLACK, 
@@ -526,6 +507,9 @@ class Finish(States):
 
     def startup(self):
         logging.debug('starting Finish state')
+
+        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 80)
+
         pygame.mixer.music.load(os.path.join(config.soundPath, 'finish.ogg'))
         pygame.mixer.music.play(0)
         self.sortedList = sorted(self.app.horses(), key=lambda horse: (not horse.done, horse.endTime-horse.startTime, horse.x))
@@ -576,7 +560,6 @@ class Finish(States):
         mx = 100
         dx = (config.screensize[0]-mx*2) // 4
 
-        myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 80)
 
         for place, horse in enumerate(self.sortedList):
           if horse.hidden: continue
@@ -609,9 +592,9 @@ class Finish(States):
             logging.debug("%s %s" % (horse.name,place))
 
           if not horse.done:
-            textsurface = myfont.render('DNF', True, BLACK)
+            textsurface = self.myfont.render('DNF', True, BLACK)
           else:
-            textsurface = myfont.render(str(round((horse.endTime-horse.startTime),2)), True, BLACK)
+            textsurface = self.myfont.render(str(round((horse.endTime-horse.startTime),2)), True, BLACK)
 
           screen.blit(textsurface, (cx - textsurface.get_size()[0]/2, y+70))
 
@@ -683,9 +666,9 @@ class HorseApp:
         self.state_name = None
         self.state_dict = None
 
-        #self.screen = pygame.display.set_mode(self.size,pygame.FULLSCREEN)
-        self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.DOUBLEBUF)
-        #self.screen = pygame.display.set_mode()
+        self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE)
+        #self.screen = pygame.display.set_mode(config.screensize, pygame.DOUBLEBUF|pygame.HWSURFACE)
+
         try:
             GPIO.setsurface(self.screen)
             # Method exists, and was used.
@@ -747,19 +730,23 @@ class HorseApp:
             self.state.get_event(event)
 
     def main_game_loop(self):
+        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 30)
+
         while not self.done:
             delta_time = self.clock.tick(self.fps)/1000.0
             self.event_loop()
             self.update(delta_time)
-            #self.screen = pygame.transform.scale(self.screen, (config.tracksize[0]*2, config.tracksize[1]*2))
-            if 0:
-              surface = pygame.display.get_surface()
-              data = pygame.image.tostring(surface,'RGB')
-              img = Image.frombytes('RGB', config.tracksize, data)
-              self.matrix.draw(img)
+
+            if 1:
+              fps = delta_time * 60
+              textsurface = self.myfont.render("fps: %.2f" % fps, True, BLACK)
+              pygame.draw.rect(self.screen, WHITE, (0, 0, textsurface.get_size()[0], textsurface.get_size()[1]), 0)
+              self.screen.blit(textsurface, (0, 0))
 
             pygame.display.update()
             pygame.display.flip()
+
+            
 
 
 def start():
@@ -767,7 +754,6 @@ def start():
       'size': config.tracksize,
       'fps' : 30
   }
-
 
   #
   # Setup GPIO pins for LEDs
@@ -777,7 +763,9 @@ def start():
     for io in config.horseLeds:
       GPIO.setup(io,GPIO.OUT)
 
+  #app = HorseApp(**settings)
   app = HorseApp(**settings)
+
   state_dict = {
       'splash': Splash(app),
       'start': Start(app),
@@ -794,7 +782,6 @@ def start():
     joystick = pygame.joystick.Joystick(i)
     joystick.init()
 
-  #app.matrix = MatrixScreen()
   pygame.mouse.set_visible(False)
   app.title = pygame.image.load(os.path.join(config.imagePath, 'splash.png')).convert_alpha()
   app.results2 = pygame.image.load(os.path.join(config.imagePath, 'results.png')).convert_alpha()

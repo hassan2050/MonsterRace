@@ -14,7 +14,7 @@ import Adafruit_PCA9685
 
 
 # Uncomment to enable debug output.
-#import logging
+import logging
 #logging.basicConfig(level=logging.DEBUG)
 
 # Initialise the PCA9685 using the default address (0x40).
