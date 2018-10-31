@@ -724,27 +724,28 @@ class HorseApp:
         self.state.update(self.screen, dt)
 
     def event_loop(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.done = True
-            self.state.get_event(event)
+      for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+          self.done = True
+        self.state.get_event(event)
 
     def main_game_loop(self):
-        self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 30)
+      self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 30)
 
-        while not self.done:
-            delta_time = self.clock.tick(self.fps)/1000.0
-            self.event_loop()
-            self.update(delta_time)
+      while not self.done:
+        delta_time = self.clock.tick(self.fps)/1000.0
+        self.event_loop()
+        self.update(delta_time)
 
-            if 1:
-              fps = delta_time * 60
-              textsurface = self.myfont.render("fps: %.2f" % fps, True, BLACK)
-              pygame.draw.rect(self.screen, WHITE, (0, 0, textsurface.get_size()[0], textsurface.get_size()[1]), 0)
-              self.screen.blit(textsurface, (0, 0))
+        if 1:
+          #fps = delta_time * 60
+          fps = 1./delta_time
+          textsurface = self.myfont.render("fps: %.1f" % fps, True, BLACK)
+          pygame.draw.rect(self.screen, WHITE, (0, 0, textsurface.get_size()[0], textsurface.get_size()[1]), 0)
+          self.screen.blit(textsurface, (0, 0))
 
-            pygame.display.update()
-            pygame.display.flip()
+        pygame.display.update()
+        pygame.display.flip()
 
             
 
@@ -752,7 +753,7 @@ class HorseApp:
 def start():
   settings = {
       'size': config.tracksize,
-      'fps' : 30
+      'fps' : 60
   }
 
   #
