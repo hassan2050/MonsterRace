@@ -47,7 +47,8 @@ class Horse:
 
         w,h = im.get_size(); ratio = w/h
         height = config.horsesize[1]
-        if self.horseid == 0: height = int(height * .8)
+        if self.horseid == 0: height = int(height * .8 * .85)
+        else: height = int(height * .95)
         im = pygame.transform.scale(im, (int(height * ratio), height))
 
         self.still = im
@@ -77,13 +78,14 @@ class Horse:
     def show(self): self.hidden = False
 
     def reset(self):
-        #self.x = config.tracksize[0] - config.horsesize[0]
-        self.x = 40 + (4-self.horseid)*60
+      
+        dx = (4-self.horseid)*60
+        self.x = 40 + dx
+        self.finishlinex = config.finishlinex + dx
         
-        self.y = int((config.horsesize[1]*.7)* self.horseid)
-        self.y = 580 + self.horseid * ((990-580) // 3) - config.horsesize[1]
-        if self.horseid == 0:
-          self.y += 50
+        dy = (980-620) // 3
+        self.y = 620 + (self.horseid) * dy
+
         self.feet = 0
         self.done = False
         self.hide()
@@ -97,14 +99,13 @@ class Horse:
         self.endTime = time.time()
 
     def draw(self, screen, dt):
-      if self.hidden:
-          return
+      if self.hidden: return
       if self.done or self.startTime is None:
-        screen.blit(self.still, [self.x,self.y])
+        screen.blit(self.still, [self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1]])
       else:
-        self.sprite.update(dt,screen,self.x,self.y)
+        self.sprite.update(dt,screen,self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1])
         if not self.done:
-          if self.x > config.finishlinex:
+          if self.x >= self.finishlinex:
             self.done = True
             self.endTime = time.time()
 
@@ -114,7 +115,7 @@ class Horse:
 
     def setLEDs(self):
         #print('setLEDs')
-        if self.x > config.finishlinex:
+        if self.x >= self.finishlinex:
              GPIO.output(self.leds[0],0)
              GPIO.output(self.leds[1],0)
              #print('setLEDs: self.x < config.finishlinex',self.x,config.finishlinex)
@@ -133,7 +134,7 @@ class Horse:
     def button(self, paw):
         if self.hidden:
             return
-        if self.x < config.finishlinex:
+        if self.x < self.finishlinex:
             if self.feet == 0:
               if paw == 0:
                 self.x += config.horsesize[0]//10
@@ -142,7 +143,7 @@ class Horse:
               if paw == 1:
                 self.x += config.horsesize[0]//10
                 self.feet=0
-        elif self.x > config.finishlinex:
+        elif self.x >= self.finishlinex:
             self.timerStarted = False
         self.setLEDs()
 
@@ -408,7 +409,12 @@ class CountDown(States):
           horse.draw(screen, dt)
           if not horse.hidden:
             textsurface = myfont.render(str(horse.slotnumber), True, BLACK)
-            screen.blit(textsurface, (config.finishlinex, horse.y+(config.horsesize[1]-textsurface.get_size()[1])//2))
+
+            screen.blit(textsurface, (horse.finishlinex+60, horse.y-45-(textsurface.get_size()[1])//2))
+
+            pygame.draw.line(screen, BLACK, 
+                             (horse.finishlinex, horse.y), 
+                             (horse.finishlinex+60, horse.y-90), 10)
 
 class Game(States):
     def __init__(self, app):
@@ -420,8 +426,6 @@ class Game(States):
         files = glob.glob(os.path.join(config.imagePath, 'countdownend*.png'))
         files.sort()
         files.append(os.path.join(config.imagePath, 'endgame.png'))
-
-        logging.info(files)
 
         frames = []
         for fn in files:
@@ -495,15 +499,23 @@ class Game(States):
 
         horses = self.app.horses()
         for horse in horses:
-            horse.draw(screen, dt)
-            if not horse.hidden:
-              textsurface = myfont.render(str(horse.slotnumber), True, BLACK)
-              screen.blit(textsurface, (config.finishlinex, horse.y+(config.horsesize[1]-textsurface.get_size()[1])//2))
+
+          if not horse.hidden:
+            textsurface = myfont.render(str(horse.slotnumber), True, BLACK)
+            screen.blit(textsurface, (horse.finishlinex+60, horse.y-45-(textsurface.get_size()[1])//2))
+
+            pygame.draw.line(screen, BLACK, 
+                             (horse.finishlinex, horse.y), 
+                             (horse.finishlinex+60, horse.y-90), 10)
+
+          horse.draw(screen, dt)
 
         if self.timerStarted == True:
           self.sprite.update(dt, screen,
                              x=(config.screensize[0] - self.sprite.images[self.sprite.index].get_size()[0])//2,
                              y=(config.screensize[1] - self.sprite.images[self.sprite.index].get_size()[1])//2)
+
+
 
 class Finish(States):
     def __init__(self, app):
