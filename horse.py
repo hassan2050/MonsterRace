@@ -669,7 +669,8 @@ class HorseApp:
     self.state_name = None
     self.state_dict = None
 
-    self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE)
+    #self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE)
+    self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.HWSURFACE)
     #self.screen = pygame.display.set_mode(config.screensize, pygame.DOUBLEBUF|pygame.HWSURFACE)
 
     try:
@@ -747,7 +748,7 @@ class HorseApp:
         self.screen.blit(textsurface, (0, 0))
 
       pygame.display.update()
-      pygame.display.flip()
+      #pygame.display.flip()
 
 def start():
   #
