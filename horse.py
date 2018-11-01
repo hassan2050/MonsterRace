@@ -109,16 +109,21 @@ class Horse:
       self.startTime = time.time()
       self.endTime = time.time()
 
-    def draw(self, screen):
+    def draw(self, screen, dirty):
       if self.hidden: return
+      
+      pos = [self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1]]
+      
       if self.done or self.startTime is None:
-        screen.blit(self.still, [self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1]])
+        screen.blit(self.still, pos)
       else:
-        self.sprite.update(screen,self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1])
+        self.sprite.update(screen, pos[0], pos[1])
         if not self.done:
           if self.x >= self.finishlinex:
             self.done = True
             self.endTime = time.time()
+
+      dirty.append((pos, self.sprite.image.get_size()))
 
     def updateLEDs(self):
       if self.hidden:
@@ -169,6 +174,11 @@ class Grass2:
     y = 620 - config.horsesize[1]
     area = pygame.Rect((x,y), (config.screensize[0], 980))
     screen.blit(self.track, [x, y], area)
+
+  def update(self, screen, dirty):
+    for (pos, size) in dirty:
+      area = pygame.Rect(pos, size)
+      screen.blit(self.track, pos, area)
 
 class States(object):
     def __init__(self):
@@ -382,17 +392,16 @@ class CountDown(States):
     self.app.grass.draw(screen)
 
     if self.timerStarted == True and time.time() < self.endTime:
-      self.sprite.update(screen,
-                         x=(config.screensize[0] - self.sprite.image.get_size()[0])//2,
-                         y=(config.screensize[1] - self.sprite.image.get_size()[1])//2)
-
+      pos = [(config.screensize[0] - self.sprite.image.get_size()[0])//2,
+             (config.screensize[1] - self.sprite.image.get_size()[1])//2]
+      self.sprite.update(screen, x=pos[0], y=pos[1])
+      self.app.dirty.append((pos, self.sprite.image.get_size()))
 
     for horse in self.app.horses():
-      horse.draw(screen)
+      horse.draw(screen, self.app.dirty)
       if not horse.hidden:
         textsurface = self.myfont.render(str(horse.slotnumber), True, BLACK)
         screen.blit(textsurface, (horse.finishlinex+60, horse.y-45-(textsurface.get_size()[1])//2))
-
         pygame.draw.line(screen, BLACK, 
                          (horse.finishlinex, horse.y), 
                          (horse.finishlinex+60, horse.y-90), 10)
@@ -480,7 +489,9 @@ class Game(States):
       if time.time() > self.endTime: self.done = True
 
   def draw(self, screen):
-    self.app.grass.update(screen)
+    #self.app.grass.update(screen)
+    self.app.grass.update(screen, self.app.dirty)
+    self.app.dirty = []
 
     horses = self.app.horses()
     for horse in horses:
@@ -492,13 +503,14 @@ class Game(States):
                          (horse.finishlinex, horse.y), 
                          (horse.finishlinex+60, horse.y-90), 10)
 
-      horse.draw(screen)
+      horse.draw(screen, self.app.dirty)
 
     if self.timerStarted == True:
-      self.countdown_sprite.update(screen,
-                         x=(config.screensize[0] - self.countdown_sprite.image.get_size()[0])//2,
-                         y=(config.screensize[1] - self.countdown_sprite.image.get_size()[1])//2)
+      pos = [(config.screensize[0] - self.countdown_sprite.image.get_size()[0])//2,
+             (config.screensize[1] - self.countdown_sprite.image.get_size()[1])//2]
 
+      self.countdown_sprite.update(screen, x=pos[0], y=pos[1])
+      self.app.dirty.append((pos, self.countdown_sprite.image.get_size()))
 
 
 class Finish(States):
@@ -668,6 +680,7 @@ class HorseApp:
     self.state = None
     self.state_name = None
     self.state_dict = None
+    self.dirty = []
 
     #self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE)
     self.screen = pygame.display.set_mode(config.screensize, pygame.FULLSCREEN|pygame.HWSURFACE)
