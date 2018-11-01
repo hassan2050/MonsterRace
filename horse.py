@@ -213,13 +213,14 @@ class Start(States):
       self.next = 'countdown'
 
   def startup(self):
-      self.timerStarted = False
+    self.endTime = None
+    self.timerStarted = False
 
-      self.app.resetHorses()
-      logging.debug('starting Start state')
+    self.app.resetHorses()
+    logging.debug('starting Start state')
 
-      self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
-      self.myfont2 = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 40)
+    self.myfont = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 60)
+    self.myfont2 = pygame.font.SysFont(os.path.join(config.fontPath, 'Bebas Neue.ttf'), 40)
 
   def get_event(self, event):
       if event.type == pygame.JOYBUTTONUP:
@@ -242,20 +243,22 @@ class Start(States):
           elif event.key == pygame.K_y: self.app.addHorse(4)
           elif event.key == pygame.K_h: self.app.addHorse(5)
 
-      if self.app.numPeople() >= config.minpeople:
-        self.timerStarted = True
-        self.endTime = time.time() + 3
+      if not self.timerStarted:
+        if self.app.numPeople() >= config.minpeople:
+          self.timerStarted = True
+          self.endTime = time.time() + 3
 
       if self.app.numPeople() == len(config.horseNames):
         self.done = True
 
   def update(self, screen):
-      self.draw(screen)
-      if self.timerStarted == True and time.time() > self.endTime:
-        self.done = True
+    if self.timerStarted and time.time() > self.endTime:
+      self.done = True
 
-      for horse in self.app._horses:
-          horse.updateLEDs()
+    self.draw(screen)
+
+    for horse in self.app._horses:
+      horse.updateLEDs()
 
   def draw(self, screen):
       screen.blit(self.app.results2, [0,0])
