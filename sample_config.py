@@ -6,10 +6,9 @@ screensize = (1920, 1080)
 
 tracksize = (screensize[0], screensize[1]//2)
 
-ratio = 982/1136
 horsesize = (250, 300)
 horseNames = ['Skelly','Draco','Witchy','Frank']
-#horseLeds = [ (25,24),(23,22),(21,20),(19,18)]
+
 horseLeds = [ (24,25),(22,23),(20,21),(19,18)]
 
 finishlinex = screensize[0]-horsesize[0] - 3*60
