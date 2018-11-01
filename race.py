@@ -4,14 +4,13 @@ import os, sys, string, time, logging, argparse
 import glob
 
 import pygame
-#import pygame_sdl2 as pygame
 
 from PIL import Image
 
 import AnimatedSprite
 import BlinkingLED
 try:
-    import dispense
+  import dispense
 except:
   import dispensenull as dispense
 
@@ -27,14 +26,9 @@ except ImportError:
   sys.exit(1)
 
 if 0:
-  x = 0
-  y = 0
-#os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
-if 0:
   os.environ['SDL_VIDEODRIVER'] = "fbcon"
   os.putenv('SDL_FBDEV','/dev/fb0')
   os.environ["SDL_FBDEV"] = "/dev/fb0"
-
 
 SONG_END = pygame.USEREVENT + 1
 
@@ -42,127 +36,125 @@ BLACK = (0,0,0)
 WHITE = (255,255,255)
 
 class Horse:
-    def __init__(self, horseid, name,leds):
-      self.name = name
-      self.horseid = horseid
-      self.slotnumber = horseid+1
-      self.leds = leds
-      dispense.dispense_init()
+  def __init__(self, horseid, name,leds):
+    self.name = name
+    self.horseid = horseid
+    self.slotnumber = horseid+1
+    self.leds = leds
+    dispense.dispense_init()
 
-      horsePath = os.path.join(config.imagePath, 'horse_%d' % (self.slotnumber))
+    horsePath = os.path.join(config.imagePath, 'horse_%d' % (self.slotnumber))
 
-      im = pygame.image.load(os.path.join(horsePath, 'still.png'))
+    im = pygame.image.load(os.path.join(horsePath, 'still.png'))
+
+    w,h = im.get_size(); ratio = w/h
+    height = config.horsesize[1]
+    if self.horseid == 0: height = int(height * .8 * .85)
+    else: height = int(height * .95)
+    im = pygame.transform.scale(im, (int(height * ratio), height))
+
+    self.still = im
+
+    files = glob.glob(os.path.join(horsePath, "frame*.png"))
+    files.sort()
+    frames = []
+    for fn in files:
+      im = pygame.image.load(fn).convert_alpha()
 
       w,h = im.get_size(); ratio = w/h
       height = config.horsesize[1]
-      if self.horseid == 0: height = int(height * .8 * .85)
-      else: height = int(height * .95)
+      if self.horseid == 0: height = int(height * .8)
       im = pygame.transform.scale(im, (int(height * ratio), height))
 
-      self.still = im
+      frames.append(im)
 
-      files = glob.glob(os.path.join(horsePath, "frame*.png"))
-      files.sort()
-      frames = []
-      for fn in files:
-         im = pygame.image.load(fn).convert_alpha()
+    self.sprite = AnimatedSprite.AnimatedSprite(frames)
+    self.sprite.pause()
 
-         w,h = im.get_size(); ratio = w/h
-         height = config.horsesize[1]
-         if self.horseid == 0: height = int(height * .8)
-         im = pygame.transform.scale(im, (int(height * ratio), height))
+    self.blinkingLEDs = BlinkingLED.BlinkingLED(GPIO, self.leds[0], self.leds[1], animation_time=0.2)
 
-         frames.append(im)
+    im = pygame.image.load(os.path.join(horsePath, 'face.png')).convert_alpha()
+    self.character = pygame.transform.scale(im, (200,200))
 
-      self.sprite = AnimatedSprite.AnimatedSprite(frames)
-      self.sprite.pause()
+    self.reset()
 
-      self.blinkingLEDs = BlinkingLED.BlinkingLED(GPIO, self.leds[0], self.leds[1], animation_time=0.2)
+  def hide(self): self.hidden = True
+  def show(self): self.hidden = False
 
-      im = pygame.image.load(os.path.join(horsePath, 'face.png')).convert_alpha()
-      self.character = pygame.transform.scale(im, (200,200))
+  def reset(self):
+    dx = (4-self.horseid)*60
+    self.x = 40 + dx
+    self.finishlinex = config.finishlinex + dx
 
-      self.reset()
+    dy = (980-620) // 3
+    self.y = 620 + (self.horseid) * dy
 
-    def hide(self): self.hidden = True
-    def show(self): self.hidden = False
+    self.feet = 0
+    self.done = False
+    self.hide()
 
-    def reset(self):
-      dx = (4-self.horseid)*60
-      self.x = 40 + dx
-      self.finishlinex = config.finishlinex + dx
+    self.startTime = None
+    self.endTime = None
+    self.setLEDs()
 
-      dy = (980-620) // 3
-      self.y = 620 + (self.horseid) * dy
+    self.sprite.run()
 
-      self.feet = 0
-      self.done = False
-      self.hide()
+  def reset_time(self):
+    self.startTime = time.time()
+    self.endTime = time.time()
 
-      self.startTime = None
-      self.endTime = None
-      self.setLEDs()
+  def draw(self, screen, dirty):
+    if self.hidden: return
 
-      self.sprite.run()
+    pos = [self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1]]
 
-    def reset_time(self):
-      self.startTime = time.time()
-      self.endTime = time.time()
-
-    def draw(self, screen, dirty):
-      if self.hidden: return
-      
-      pos = [self.x, self.y-self.sprite.images[self.sprite.index].get_size()[1]]
-      
-      if self.done or self.startTime is None:
-        screen.blit(self.still, pos)
-      else:
-        self.sprite.update(screen, pos[0], pos[1])
-        if not self.done:
-          if self.x >= self.finishlinex:
-            self.done = True
-            self.endTime = time.time()
-
-      dirty.append((pos, self.sprite.image.get_size()))
-
-    def updateLEDs(self):
-      if self.hidden:
-        self.blinkingLEDs.update()
-
-    def setLEDs(self):
-        #print('setLEDs')
+    if self.done or self.startTime is None:
+      screen.blit(self.still, pos)
+    else:
+      self.sprite.update(screen, pos[0], pos[1])
+      if not self.done:
         if self.x >= self.finishlinex:
-             GPIO.output(self.leds[0],0)
-             GPIO.output(self.leds[1],0)
-             #print('setLEDs: self.x < config.finishlinex',self.x,config.finishlinex)
-        else:
-          if (self.feet==0):
-             GPIO.output(self.leds[0],0)
-             GPIO.output(self.leds[1],1)
-          else:
-             GPIO.output(self.leds[1],0)
-             GPIO.output(self.leds[0],1)
+          self.done = True
+          self.endTime = time.time()
 
-    def change_state(self):
+    dirty.append((pos, self.sprite.image.get_size()))
+
+  def updateLEDs(self):
+    if self.hidden:
+      self.blinkingLEDs.update()
+
+  def setLEDs(self):
+    if self.x >= self.finishlinex:
       GPIO.output(self.leds[0],0)
       GPIO.output(self.leds[1],0)
+    else:
+      if (self.feet==0):
+        GPIO.output(self.leds[0],0)
+        GPIO.output(self.leds[1],1)
+      else:
+        GPIO.output(self.leds[1],0)
+        GPIO.output(self.leds[0],1)
 
-    def button(self, paw):
-      if self.hidden: return
-      if self.x < self.finishlinex:
-        if self.feet == 0:
-          if paw == 0:
-            self.x += config.horsesize[0]//10
-            self.feet=1
-        elif self.feet == 1:
-          if paw == 1:
-            self.x += config.horsesize[0]//10
-            self.feet=0
-      elif self.x >= self.finishlinex:
-        self.timerStarted = False
-      self.setLEDs()
+  def change_state(self):
+    GPIO.output(self.leds[0],0)
+    GPIO.output(self.leds[1],0)
 
-class Grass2:
+  def button(self, paw):
+    if self.hidden: return
+    if self.x < self.finishlinex:
+      if self.feet == 0:
+        if paw == 0:
+          self.x += config.horsesize[0]//10
+          self.feet=1
+      elif self.feet == 1:
+        if paw == 1:
+          self.x += config.horsesize[0]//10
+          self.feet=0
+    elif self.x >= self.finishlinex:
+      self.timerStarted = False
+    self.setLEDs()
+
+class Track:
   def __init__(self):
     self.track = pygame.image.load(os.path.join(config.imagePath, 'track.png'))
 
@@ -389,7 +381,7 @@ class CountDown(States):
       self.done = True
 
   def draw(self, screen):
-    self.app.grass.draw(screen)
+    self.app.track.draw(screen)
 
     if self.timerStarted == True and time.time() < self.endTime:
       pos = [(config.screensize[0] - self.sprite.image.get_size()[0])//2,
@@ -489,8 +481,8 @@ class Game(States):
       if time.time() > self.endTime: self.done = True
 
   def draw(self, screen):
-    #self.app.grass.update(screen)
-    self.app.grass.update(screen, self.app.dirty)
+    #self.app.track.update(screen)
+    self.app.track.update(screen, self.app.dirty)
     self.app.dirty = []
 
     horses = self.app.horses()
@@ -561,12 +553,11 @@ class Finish(States):
         self.quit = True
 
   def markDone(self):
-      logging.debug("markDone")
-    #dt = time.time() - self.showTimer
+    logging.debug("markDone")
 
   def update(self, screen):
-      self.draw(screen)
-      pygame.display.flip()
+    self.draw(screen)
+    pygame.display.flip()
 
   def draw(self, screen):
     screen.blit(self.app.results2, [0,0])
@@ -801,7 +792,7 @@ def start():
     im = pygame.transform.scale(im, (int(200 * ratio), 200))
     app.ribbons.append(im)
 
-  app.grass = Grass2()
+  app.track = Track()
 
   app.setup_states(state_dict, 'splash')
   app.main_game_loop()
